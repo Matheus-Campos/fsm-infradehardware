@@ -1,6 +1,10 @@
 #include "fsm_config.h"
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <DHT.h>
+
+#define DHTPIN 2     // what pin we're connected to
+#define DHTTYPE DHT22   // DHT 22  (AM2302)
 
 const int buttonPin = D5;    // definicao do pino utilizado pelo botao
 const int ledPin = D7;       // definicao do pino utilizado pelo led
@@ -15,10 +19,14 @@ unsigned long debounceDelay = 50;    // tempo utilizado para implementar o debou
 long lastMsg = 0;
 char msg[50];
 int value = 0;
+int chk;
+float hum;  //Stores humidity value
+float temp; //Stores temperature value
 
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+DHT dht(DHTPIN, DHTTYPE);
 
 
 // definicao das funcoes relativas a cada estado
@@ -42,11 +50,24 @@ event idle_state(void) {
 }
 
 event send_data_state(void) {
-  
+  hum = dht.readHumidity();
+  temp = dht.readTemperature();
+  Serial.print("Humidity: ");
+  Serial.print(hum);
+  Serial.print(" %, Temp: ");
+  Serial.print(temp);
+  Serial.println(" Celsius");
 }
 
 event send_data_button_state(void) {
-  
+  hum = dht.readHumidity();
+  temp = dht.readTemperature();
+  Serial.print("Humidity: ");
+  Serial.print(hum);
+  Serial.print(" %, Temp: ");
+  Serial.print(temp);
+  Serial.println(" Celsius");
+  Serial.println("Button pressed");  
 }
 
 event no_connection_state(void) {
@@ -124,8 +145,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
+  Serial.begin(115200);
   pinMode(buttonPin, INPUT);
   pinMode(ledPin, OUTPUT);
+  dht.begin();
 }
 
 void loop() {
