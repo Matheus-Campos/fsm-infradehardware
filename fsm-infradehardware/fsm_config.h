@@ -19,7 +19,7 @@ state state_transitions[NUM_STATES][NUM_EVENTS] = {{send_data, send_data_button}
                                                    {idle, connect},
                                                    {idle, no_connection},
                                                    {idle, no_connection},
-                                                   {idle, idle}};
+                                                   {connect, connect}};
 // definicao dos estados inicial e final
 #define EXIT_STATE end
 #define ENTRY_STATE connect

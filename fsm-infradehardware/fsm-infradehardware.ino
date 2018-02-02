@@ -1,17 +1,21 @@
+// Includes
 #include "fsm_config.h"
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
 
+// Definições
 #define DHTPIN 2     // what pin we're connected to
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
 
+// Constantes
 const int buttonPin = D5;    // definicao do pino utilizado pelo botao
 const int ledPin = D7;       // definicao do pino utilizado pelo led
 const char* ssid = "jualabs"; // nome da rede wifi
 const char* password = "jualabsufrpe"; // senha da wifi
 const char* mqtt_server = "things.ubidots.com"; // url do servidor
 
+// Variáveis
 int buttonState = LOW;             // armazena a leitura atual do botao
 int lastButtonState = LOW;         // armazena a leitura anterior do botao
 unsigned long lastDebounceTime = 0;  // armazena a ultima vez que a leitura da entrada variou
@@ -19,11 +23,10 @@ unsigned long debounceDelay = 50;    // tempo utilizado para implementar o debou
 long lastMsg = 0;
 char msg[50];
 int value = 0;
-int chk;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
 
-
+// Objetos
 WiFiClient espClient;
 PubSubClient client(espClient);
 DHT dht(DHTPIN, DHTTYPE);
@@ -45,7 +48,6 @@ event idle_state(void) {
     }
     tempoComeco = millis();
   }
-
   return empty;
 }
 
@@ -57,6 +59,7 @@ event send_data_state(void) {
   Serial.print(" %, Temp: ");
   Serial.print(temp);
   Serial.println(" Celsius");
+  reconnect();
 }
 
 event send_data_button_state(void) {
@@ -67,11 +70,12 @@ event send_data_button_state(void) {
   Serial.print(" %, Temp: ");
   Serial.print(temp);
   Serial.println(" Celsius");
-  Serial.println("Button pressed");  
+  Serial.println("Button pressed");
+  reconnect();
 }
 
 event no_connection_state(void) {
-  
+  return empty;
 }
 
 event end_state(void) {
@@ -142,6 +146,27 @@ void callback(char* topic, byte* payload, unsigned int length) {
     digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
   }
 
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
+      // ... and resubscribe
+      client.subscribe("inTopic");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
 
 void setup() {
