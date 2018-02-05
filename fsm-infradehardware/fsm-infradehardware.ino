@@ -25,6 +25,8 @@ char msg[50];
 int value = 0;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
+char umidade[50];
+char temperatura[50];
 
 // Objetos
 WiFiClient espClient;
@@ -37,6 +39,20 @@ event connect_state(void) {
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+  return empty;
 }
 
 event idle_state(void) {
@@ -59,7 +75,14 @@ event send_data_state(void) {
   Serial.print(" %, Temp: ");
   Serial.print(temp);
   Serial.println(" Celsius");
-  reconnect();
+  snprintf(umidade, 50, "{\"value\":%d}", hum);
+  snprintf(temperatura, 50, "{\"value\":%d}", temp);
+  client.publish("/v1.6/devices/mytemstatus/temp", umidade);
+  client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
+  client.subscribe("inTopic");
+  digitalWrite(ledPin, HIGH);
+  delay(500);
+  digitalWrite(ledPin, LOW);
 }
 
 event send_data_button_state(void) {
@@ -71,7 +94,16 @@ event send_data_button_state(void) {
   Serial.print(temp);
   Serial.println(" Celsius");
   Serial.println("Button pressed");
-  reconnect();
+  snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+  snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+  client.publish("/v1.6/devices/mytemstatus/temp", umidade);
+  client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
+  client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
+  client.subscribe("inTopic");
+  digitalWrite(ledPin, HIGH);
+  delay(500);
+  digitalWrite(ledPin, LOW);
+  
 }
 
 event no_connection_state(void) {
@@ -139,11 +171,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
-    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
+    digitalWrite(ledPin, LOW);   // Turn the LED on (Note that LOW is the voltage level
     // but actually the LED is on; this is because
     // it is acive low on the ESP-01)
   } else {
-    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+    digitalWrite(ledPin, HIGH);  // Turn the LED off by making the voltage HIGH
   }
 
 }
@@ -155,10 +187,6 @@ void reconnect() {
     // Attempt to connect
     if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
-      // ... and resubscribe
-      client.subscribe("inTopic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -168,6 +196,8 @@ void reconnect() {
     }
   }
 }
+
+
 
 void setup() {
   Serial.begin(115200);
