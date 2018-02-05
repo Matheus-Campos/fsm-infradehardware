@@ -5,14 +5,14 @@
 #include <DHT.h>
 
 // Definições
-#define DHTPIN 2     // what pin we're connected to
+#define DHTPIN D3     // what pin we're connected to
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
 
 // Constantes
 const int buttonPin = D5;    // definicao do pino utilizado pelo botao
 const int ledPin = D7;       // definicao do pino utilizado pelo led
-const char* ssid = "jualabs"; // nome da rede wifi
-const char* password = "jualabsufrpe"; // senha da wifi
+const char* ssid = "redimi 4x"; // nome da rede wi-fi
+const char* password = "12345678"; // senha da rede wi-fi
 const char* mqtt_server = "things.ubidots.com"; // url do servidor
 
 // Variáveis
@@ -44,6 +44,23 @@ event connect_state(void) {
     // Attempt to connect
     if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
       Serial.println("connected");
+      hum = dht.readHumidity();
+      temp = dht.readTemperature();
+      Serial.print("Humidity: ");
+      Serial.print(hum);
+      Serial.print(" %, Temp: ");
+      Serial.print(temp);
+      Serial.println(" Celsius");
+      // AQUI DÁ FATAL EXCEPTION 29, POR ISSO COMENTAMOS E BOTAMOS HARDCODED
+//      snprintf(umidade, 50, "{\"value\":%d}", dtostrf(hum, 6, 2, NULL));
+//      snprintf(temperatura, 50, "{\"value\":%d}", dtostrf(temp, 6, 2, NULL));
+      // AQUI COMEÇAM OS TESTES, ELA ENVIA A UMIDADE
+      client.publish("/v1.6/devices/mytemstatus/umidade", "{\"value\": 28}");
+      //client.subscribe("inTopic");
+      // AQUI A CONEXÃO É PERDIDA E A TEMPERATURA NÃO É ENVIADA, A ROTA ESTÁ CORRETA
+      client.publish("/v1.6/devices/mytemstatus/temp", "{\"value\": 50}");
+      //client.subscribe("inTopic");
+      return empty;
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -52,7 +69,7 @@ event connect_state(void) {
       delay(5000);
     }
   }
-  return empty;
+  return action;
 }
 
 event idle_state(void) {
@@ -68,42 +85,53 @@ event idle_state(void) {
 }
 
 event send_data_state(void) {
-  hum = dht.readHumidity();
-  temp = dht.readTemperature();
-  Serial.print("Humidity: ");
-  Serial.print(hum);
-  Serial.print(" %, Temp: ");
-  Serial.print(temp);
-  Serial.println(" Celsius");
-  snprintf(umidade, 50, "{\"value\":%d}", hum);
-  snprintf(temperatura, 50, "{\"value\":%d}", temp);
-  client.publish("/v1.6/devices/mytemstatus/temp", umidade);
-  client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
-  client.subscribe("inTopic");
-  digitalWrite(ledPin, HIGH);
-  delay(500);
-  digitalWrite(ledPin, LOW);
+  if (client.loop()) {
+    hum = dht.readHumidity();
+    temp = dht.readTemperature();
+    Serial.print("Humidity: ");
+    Serial.print(hum);
+    Serial.print(" %, Temp: ");
+    Serial.print(temp);
+    Serial.println(" Celsius");
+    Serial.println("Button pressed");
+    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+    client.publish("/v1.6/devices/mytemstatus/temp", umidade);
+    client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
+    client.subscribe("inTopic");
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    return empty;
+  } else {
+    return empty;
+  }
+  enviar();
 }
 
 event send_data_button_state(void) {
-  hum = dht.readHumidity();
-  temp = dht.readTemperature();
-  Serial.print("Humidity: ");
-  Serial.print(hum);
-  Serial.print(" %, Temp: ");
-  Serial.print(temp);
-  Serial.println(" Celsius");
-  Serial.println("Button pressed");
-  snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-  snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
-  client.publish("/v1.6/devices/mytemstatus/temp", umidade);
-  client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
-  client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
-  client.subscribe("inTopic");
-  digitalWrite(ledPin, HIGH);
-  delay(500);
-  digitalWrite(ledPin, LOW);
-  
+  if (client.loop()) {
+    hum = dht.readHumidity();
+    temp = dht.readTemperature();
+    Serial.print("Humidity: ");
+    Serial.print(hum);
+    Serial.print(" %, Temp: ");
+    Serial.print(temp);
+    Serial.println(" Celsius");
+    Serial.println("Button pressed");
+    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+    client.publish("/v1.6/devices/mytemstatus/temp", umidade);
+    client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
+    client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
+    client.subscribe("inTopic");
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    return empty;
+  } else {
+    return action;
+  }
 }
 
 event no_connection_state(void) {
@@ -180,13 +208,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
-void reconnect() {
+void enviar() {
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
     if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
       Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
+      // ... and resubscribe
+      client.subscribe("inTopic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -196,7 +228,6 @@ void reconnect() {
     }
   }
 }
-
 
 
 void setup() {
