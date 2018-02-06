@@ -118,13 +118,12 @@ event send_data_state(void) {
     Serial.print(" %, Temp: ");
     Serial.print(temp);
     Serial.println(" Celsius");
-    Serial.println("Button pressed");
-    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
 
     // Envia os dados
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", umidade);
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", temperatura);
+//    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", umidade);
+//    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", temperatura);
 
     // Pisca o led
     digitalWrite(ledPin, HIGH);
@@ -154,6 +153,7 @@ event send_data_button_state(void) {
 
     // Envia os dados
     client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 28}");
+    delay(500);
     client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 50}");
     client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\":100}");
 
