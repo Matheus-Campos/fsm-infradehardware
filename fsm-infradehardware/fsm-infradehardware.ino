@@ -33,59 +33,84 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 DHT dht(DHTPIN, DHTTYPE);
 
+// variaveis que armazenam estado atual, evento atual e funcao de tratamento do estado atual
+state cur_state = ENTRY_STATE;
+event cur_evt;
+event (* cur_state_function)(void);
+
 
 // definicao das funcoes relativas a cada estado
 event connect_state(void) {
-  setup_wifi();
+  // Caso a WiFi não esteja conectada.
+  if (WiFi.status() != WL_CONNECTED) {
+    setup_wifi();
+  }
+
+  // Configura o servidor
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
-      Serial.println("connected");
-      hum = dht.readHumidity();
-      temp = dht.readTemperature();
-      Serial.print("Humidity: ");
-      Serial.print(hum);
-      Serial.print(" %, Temp: ");
-      Serial.print(temp);
-      Serial.println(" Celsius");
-      // AQUI DÁ FATAL EXCEPTION 29, POR ISSO COMENTAMOS E BOTAMOS HARDCODED
-//      snprintf(umidade, 50, "{\"value\":%d}", dtostrf(hum, 6, 2, NULL));
-//      snprintf(temperatura, 50, "{\"value\":%d}", dtostrf(temp, 6, 2, NULL));
-      // AQUI COMEÇAM OS TESTES, ELA ENVIA A UMIDADE
-      client.publish("/v1.6/devices/mytemstatus/umidade", "{\"value\": 28}");
-      //client.subscribe("inTopic");
-      // AQUI A CONEXÃO É PERDIDA E A TEMPERATURA NÃO É ENVIADA, A ROTA ESTÁ CORRETA
-      client.publish("/v1.6/devices/mytemstatus/temp", "{\"value\": 50}");
-      //client.subscribe("inTopic");
-      return empty;
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
+  Serial.println("Tentando se conectar ao servidor");
+  client.connect("ESP8266Client","A1E-sai2K7TuqyU8xRbNNFPTGGMG5kKE6s",""); // Se conecta ao device no Ubidots
+
+  // Se mesmo assim o client não estiver conectado
+  if (!client.connected()) {
+    return action; // Volta para o estado connect
   }
-  return action;
+  return empty; // Vai para o estado idle
+  
+//  while (!client.connected()) {
+//    Serial.print("Attempting MQTT connection...");
+//    // Attempt to connect
+//    if (client.connect("ESP8266Client","A1E-sai2K7TuqyU8xRbNNFPTGGMG5kKE6s","")) {
+//      Serial.println("connected");
+//      hum = dht.readHumidity();
+//      temp = dht.readTemperature();
+//      Serial.print("Humidity: ");
+//      Serial.print(hum);
+//      Serial.print(" %, Temp: ");
+//      Serial.print(temp);
+//      Serial.println(" Celsius");
+////      snprintf(umidade, 50, "{\"value\":%d}", dtostrf(hum, 6, 2, NULL));
+////      snprintf(temperatura, 50, "{\"value\":%d}", dtostrf(temp, 6, 2, NULL));
+//      client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 28}");
+//      delay(500);
+//      client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 50}");
+//      return empty;
+//    } else {
+//      Serial.print("failed, rc=");
+//      Serial.print(client.state());
+//      Serial.println(" try again in 5 seconds");
+//      // Wait 5 seconds before retrying
+//      delay(5000);
+//    }
+//  }
+//  return action;
 }
 
 event idle_state(void) {
-  int tempoComeco = millis();
-  int tempoFinal = tempoComeco + 10000;
-  while (tempoComeco < tempoFinal) {
+  Serial.println("Entrou no idle");
+  int tempoInicio = millis();
+  int tempoFinal = tempoInicio + 2000; // Tempo após 10 segundos
+  
+  while (tempoInicio < tempoFinal) {
+    // Checa se o botão foi pressionado
+    Serial.println("Entrou no loop");
     if(read_button()) {
-      return action;
+      Serial.println("Apertou o botão");
+      return action; // Vai para o estados send_data_button
     }
-    tempoComeco = millis();
+    tempoInicio = millis(); // Atualiza o tempoInicio
   }
+  Serial.println("Saiu do loop");
+  // Se passaram 10s, vai para o estado send_data
   return empty;
 }
 
 event send_data_state(void) {
-  if (client.loop()) {
+  Serial.println("Entrou no send_data");
+  // Checa se o client continua conectado
+  if (client.connected()) {
+    // Lê os dados
     hum = dht.readHumidity();
     temp = dht.readTemperature();
     Serial.print("Humidity: ");
@@ -96,21 +121,26 @@ event send_data_state(void) {
     Serial.println("Button pressed");
     snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
     snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
-    client.publish("/v1.6/devices/mytemstatus/temp", umidade);
-    client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
-    client.subscribe("inTopic");
+
+    // Envia os dados
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", umidade);
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", temperatura);
+
+    // Pisca o led
     digitalWrite(ledPin, HIGH);
     delay(500);
     digitalWrite(ledPin, LOW);
-    return empty;
+    return empty; // Vai para o estado idle
   } else {
-    return empty;
+    return action; // Vai para o estado no_connection
   }
-  enviar();
 }
 
 event send_data_button_state(void) {
-  if (client.loop()) {
+  Serial.println("Entrou no send_data_button");
+  // Checa se o client continua conectado
+  if (client.connected()) {
+    // Lê os dados
     hum = dht.readHumidity();
     temp = dht.readTemperature();
     Serial.print("Humidity: ");
@@ -119,33 +149,33 @@ event send_data_button_state(void) {
     Serial.print(temp);
     Serial.println(" Celsius");
     Serial.println("Button pressed");
-    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
-    client.publish("/v1.6/devices/mytemstatus/temp", umidade);
-    client.publish("/v1.6/devices/mytemstatus/umidade", temperatura);
-    client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
-    client.subscribe("inTopic");
+//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+
+    // Envia os dados
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 28}");
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 50}");
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\":100}");
+
+    // Pisca o led
     digitalWrite(ledPin, HIGH);
     delay(500);
     digitalWrite(ledPin, LOW);
-    return empty;
+    return empty; // Vai para o estado idle
   } else {
-    return action;
+    return action; // Vai para o estado no_connection
   }
 }
 
 event no_connection_state(void) {
+  Serial.println("Entrou no no_connection");
+  // Apenas vai para o estado connect
   return empty;
 }
 
 event end_state(void) {
   
 }
-
-// variaveis que armazenam estado atual, evento atual e funcao de tratamento do estado atual
-state cur_state = ENTRY_STATE;
-event cur_evt;
-event (* cur_state_function)(void);
 
 // implementacao de funcoes auxiliares
 int read_button() {
@@ -188,6 +218,7 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+// NÃO ESTÁ SENDO CHAMADO (POR ENQUANTO)
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -206,27 +237,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     digitalWrite(ledPin, HIGH);  // Turn the LED off by making the voltage HIGH
   }
 
-}
-
-void enviar() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("ESP8266Client","A1E-SXNsNzPsH1n7KQyjs75tCHlnK2NjVZ","")) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("/v1.6/devices/mytemstatus/button", "{\"value\":100}");
-      // ... and resubscribe
-      client.subscribe("inTopic");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
 }
 
 
