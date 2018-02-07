@@ -11,8 +11,8 @@
 // Constantes
 const int buttonPin = D5;    // definicao do pino utilizado pelo botao
 const int ledPin = D7;       // definicao do pino utilizado pelo led
-const char* ssid = "redimi 4x"; // nome da rede wi-fi
-const char* password = "12345678"; // senha da rede wi-fi
+const char* ssid = "Edna"; // nome da rede wi-fi
+const char* password = "3dn4123@"; // senha da rede wi-fi
 const char* mqtt_server = "things.ubidots.com"; // url do servidor
 
 // Variáveis
@@ -57,34 +57,6 @@ event connect_state(void) {
     return action; // Volta para o estado connect
   }
   return empty; // Vai para o estado idle
-  
-//  while (!client.connected()) {
-//    Serial.print("Attempting MQTT connection...");
-//    // Attempt to connect
-//    if (client.connect("ESP8266Client","A1E-sai2K7TuqyU8xRbNNFPTGGMG5kKE6s","")) {
-//      Serial.println("connected");
-//      hum = dht.readHumidity();
-//      temp = dht.readTemperature();
-//      Serial.print("Humidity: ");
-//      Serial.print(hum);
-//      Serial.print(" %, Temp: ");
-//      Serial.print(temp);
-//      Serial.println(" Celsius");
-////      snprintf(umidade, 50, "{\"value\":%d}", dtostrf(hum, 6, 2, NULL));
-////      snprintf(temperatura, 50, "{\"value\":%d}", dtostrf(temp, 6, 2, NULL));
-//      client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 28}");
-//      delay(500);
-//      client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 50}");
-//      return empty;
-//    } else {
-//      Serial.print("failed, rc=");
-//      Serial.print(client.state());
-//      Serial.println(" try again in 5 seconds");
-//      // Wait 5 seconds before retrying
-//      delay(5000);
-//    }
-//  }
-//  return action;
 }
 
 event idle_state(void) {
@@ -108,27 +80,11 @@ event idle_state(void) {
 
 event send_data_state(void) {
   Serial.println("Entrou no send_data");
+  ler_humidade_temperatura();
   // Checa se o client continua conectado
-  if (client.connected()) {
-    // Lê os dados
-    hum = dht.readHumidity();
-    temp = dht.readTemperature();
-    Serial.print("Humidity: ");
-    Serial.print(hum);
-    Serial.print(" %, Temp: ");
-    Serial.print(temp);
-    Serial.println(" Celsius");
-//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
-
-    // Envia os dados
-//    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", umidade);
-//    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", temperatura);
-
-    // Pisca o led
-    digitalWrite(ledPin, HIGH);
-    delay(500);
-    digitalWrite(ledPin, LOW);
+  if (client.loop()) {
+    enviar_humidade_temperatura();
+    piscar_led();
     return empty; // Vai para o estado idle
   } else {
     return action; // Vai para o estado no_connection
@@ -137,30 +93,12 @@ event send_data_state(void) {
 
 event send_data_button_state(void) {
   Serial.println("Entrou no send_data_button");
+  ler_humidade_temperatura();
   // Checa se o client continua conectado
   if (client.connected()) {
-    // Lê os dados
-    hum = dht.readHumidity();
-    temp = dht.readTemperature();
-    Serial.print("Humidity: ");
-    Serial.print(hum);
-    Serial.print(" %, Temp: ");
-    Serial.print(temp);
-    Serial.println(" Celsius");
-    Serial.println("Button pressed");
-//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
-
-    // Envia os dados
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 28}");
-    delay(500);
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 50}");
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\":100}");
-
-    // Pisca o led
-    digitalWrite(ledPin, HIGH);
-    delay(500);
-    digitalWrite(ledPin, LOW);
+    enviar_humidade_temperatura();
+    client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\":100}"); // Manda a informação do botão
+    piscar_led();
     return empty; // Vai para o estado idle
   } else {
     return action; // Vai para o estado no_connection
@@ -196,6 +134,30 @@ int read_button() {
     }
   }
   return false;
+}
+
+void piscar_led() {
+  digitalWrite(ledPin, HIGH);
+  delay(200);
+  digitalWrite(ledPin, LOW);
+}
+
+void ler_humidade_temperatura() {
+  hum = dht.readHumidity();
+  temp = dht.readTemperature();
+  Serial.print("Humidity: ");
+  Serial.print(hum);
+  Serial.print(" %, Temp: ");
+  Serial.print(temp);
+  Serial.println(" Celsius");
+//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
+//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+}
+
+void enviar_humidade_temperatura() {
+  Serial.println("Enviou!");
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 50}");
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 100}");    
 }
 
 void setup_wifi() {
