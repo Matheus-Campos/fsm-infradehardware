@@ -1,4 +1,4 @@
-#define NUM_STATES 5
+#define NUM_STATES 6
 #define NUM_EVENTS 2
 
 // definicao dos possiveis eventos gerados pelos estados da FSM
@@ -19,7 +19,8 @@ state state_transitions[NUM_STATES][NUM_EVENTS] = {{send_data, send_data_button}
                                                    {idle, connect},
                                                    {idle, no_connection},
                                                    {idle, no_connection},
-                                                   {connect, connect}};
+                                                   {connect, connect},
+                                                   {no_connection, no_connection}};
 // definicao dos estados inicial e final
 #define EXIT_STATE end
 #define ENTRY_STATE connect
