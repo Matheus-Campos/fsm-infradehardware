@@ -27,6 +27,7 @@ float hum;  //Stores humidity value
 float temp; //Stores temperature value
 char umidade[50];
 char temperatura[50];
+char button[50];
 
 // Objetos
 WiFiClient espClient;
@@ -80,10 +81,10 @@ event idle_state(void) {
 
 event send_data_state(void) {
   Serial.println("Entrou no send_data");
-  ler_humidade_temperatura();
+  ler_dados(0);
   // Checa se o client continua conectado
   if (client.loop()) {
-    enviar_humidade_temperatura();
+    enviar_dados();
     piscar_led();
     return empty; // Vai para o estado idle
   } else {
@@ -93,11 +94,10 @@ event send_data_state(void) {
 
 event send_data_button_state(void) {
   Serial.println("Entrou no send_data_button");
-  ler_humidade_temperatura();
+  ler_dados(1);
   // Checa se o client continua conectado
   if (client.connected()) {
-    enviar_humidade_temperatura();
-    client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\":100}"); // Manda a informação do botão
+    enviar_dados();
     piscar_led();
     return empty; // Vai para o estado idle
   } else {
@@ -142,7 +142,7 @@ void piscar_led() {
   digitalWrite(ledPin, LOW);
 }
 
-void ler_humidade_temperatura() {
+void ler_dados(float button_state) {
   hum = dht.readHumidity();
   temp = dht.readTemperature();
   Serial.print("Humidity: ");
@@ -150,14 +150,23 @@ void ler_humidade_temperatura() {
   Serial.print(" %, Temp: ");
   Serial.print(temp);
   Serial.println(" Celsius");
-//    snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 6, 2, NULL));
-//    snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 6, 2, NULL));
+//  snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 5, 2, NULL));
+//  snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 5, 2, NULL));
+//  snprintf(button, 50, "{\"value\":%s}", dtostrf(button_state, 1, 0, NULL));
+//  Serial.println(button);
+//  Serial.println(umidade);
+//  Serial.println(temperatura);
 }
 
-void enviar_humidade_temperatura() {
+void enviar_dados() {
   Serial.println("Enviou!");
   client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 50}");
-  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 100}");    
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 100}");
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\": 1}");
+  delay(3000);
+//  client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", temperatura);
+//  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", umidade);
+//  client.publish("/v1.6/devices/wemos-d1-r2-mini/button", button);
 }
 
 void setup_wifi() {
