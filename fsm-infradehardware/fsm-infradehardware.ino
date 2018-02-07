@@ -11,8 +11,8 @@
 // Constantes
 const int buttonPin = D5;    // definicao do pino utilizado pelo botao
 const int ledPin = D7;       // definicao do pino utilizado pelo led
-const char* ssid = "Edna"; // nome da rede wi-fi
-const char* password = "3dn4123@"; // senha da rede wi-fi
+const char* ssid = "Matheus"; // nome da rede wi-fi
+const char* password = "entrabruna"; // senha da rede wi-fi
 const char* mqtt_server = "things.ubidots.com"; // url do servidor
 
 // Variáveis
@@ -25,9 +25,14 @@ char msg[50];
 int value = 0;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
-char umidade[50];
-char temperatura[50];
-char button[50];
+String button = "{\"value\":";
+String umidade = "{\"value\":";
+String temperatura = "{\"value\":";
+char umidadeChar[50];
+char temperaturaChar[50];
+char buttonChar[50];
+int tempoInicio;
+int tempoFinal;
 
 // Objetos
 WiFiClient espClient;
@@ -57,26 +62,20 @@ event connect_state(void) {
   if (!client.connected()) {
     return action; // Volta para o estado connect
   }
+  resetar_tempo();
   return empty; // Vai para o estado idle
 }
 
 event idle_state(void) {
   Serial.println("Entrou no idle");
-  int tempoInicio = millis();
-  int tempoFinal = tempoInicio + 2000; // Tempo após 10 segundos
-  
-  while (tempoInicio < tempoFinal) {
-    // Checa se o botão foi pressionado
-    Serial.println("Entrou no loop");
-    if(read_button()) {
-      Serial.println("Apertou o botão");
-      return action; // Vai para o estados send_data_button
-    }
-    tempoInicio = millis(); // Atualiza o tempoInicio
+  tempoInicio = millis();
+  Serial.println(tempoInicio);
+  Serial.println(tempoFinal);
+  if (tempoInicio > tempoFinal) {
+    return empty; // Vai para o estado send_data
+  } else if (read_button()) {
+    return action; // Vai para o estado send_data_button
   }
-  Serial.println("Saiu do loop");
-  // Se passaram 10s, vai para o estado send_data
-  return empty;
 }
 
 event send_data_state(void) {
@@ -86,6 +85,7 @@ event send_data_state(void) {
   if (client.loop()) {
     enviar_dados();
     piscar_led();
+    resetar_tempo();
     return empty; // Vai para o estado idle
   } else {
     return action; // Vai para o estado no_connection
@@ -136,13 +136,17 @@ int read_button() {
   return false;
 }
 
+void resetar_tempo() {
+  tempoFinal = millis() + 10000;
+}
+
 void piscar_led() {
   digitalWrite(ledPin, HIGH);
   delay(200);
   digitalWrite(ledPin, LOW);
 }
 
-void ler_dados(float button_state) {
+void ler_dados(int button_state) {
   hum = dht.readHumidity();
   temp = dht.readTemperature();
   Serial.print("Humidity: ");
@@ -150,23 +154,25 @@ void ler_dados(float button_state) {
   Serial.print(" %, Temp: ");
   Serial.print(temp);
   Serial.println(" Celsius");
-//  snprintf(umidade, 50, "{\"value\":%s}", dtostrf(hum, 5, 2, NULL));
-//  snprintf(temperatura, 50, "{\"value\":%s}", dtostrf(temp, 5, 2, NULL));
-//  snprintf(button, 50, "{\"value\":%s}", dtostrf(button_state, 1, 0, NULL));
-//  Serial.println(button);
-//  Serial.println(umidade);
-//  Serial.println(temperatura);
+  temperatura.concat(temp);
+  temperatura.concat("}");
+  umidade.concat(hum);
+  umidade.concat("}");
+  button.concat(button_state);
+  button.concat("}");
+  temperatura.toCharArray(temperaturaChar, 50);
+  umidade.toCharArray(umidadeChar, 50);
+  button.toCharArray(buttonChar, 50);
+  button = "{\"value\":";
+  umidade = "{\"value\":";
+  temperatura = "{\"value\":";
 }
 
 void enviar_dados() {
   Serial.println("Enviou!");
-  client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", "{\"value\": 50}");
-  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", "{\"value\": 100}");
-  client.publish("/v1.6/devices/wemos-d1-r2-mini/button", "{\"value\": 1}");
-  delay(3000);
-//  client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", temperatura);
-//  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", umidade);
-//  client.publish("/v1.6/devices/wemos-d1-r2-mini/button", button);
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/temp", temperaturaChar);
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/humidity", umidadeChar);
+  client.publish("/v1.6/devices/wemos-d1-r2-mini/button", buttonChar);
 }
 
 void setup_wifi() {
