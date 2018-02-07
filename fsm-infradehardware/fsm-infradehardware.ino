@@ -69,10 +69,7 @@ event connect_state(void) {
 event idle_state(void) {
   Serial.println("Entrou no idle");
   label: tempoInicio = millis();
-  Serial.println(tempoInicio);
-  Serial.println(tempoFinal);
   if (tempoInicio > tempoFinal) {
-    Serial.println("Passou");
     return empty; // Vai para o estado send_data
   }
   if (read_button()) {
